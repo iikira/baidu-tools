@@ -52,11 +52,11 @@ func (user *Tieba) TiebaSign(fid, name string) (status int, bonusExp int, err er
 	errorMsg := json.Get("error_msg").MustString()
 	err = fmt.Errorf("贴吧签到时发生错误, 错误代码: %s, 消息: %s", baiduUtil.ErrorColor(errorCode), baiduUtil.ErrorColor(errorMsg))
 	switch errorCode {
-	case "340010", "160002", "3": // 已签到
+	case "160002": // 已签到
 		return 0, 0, nil
 	case "110001": // 签名错误
 		return 1, 0, nil
-	case "340011": // 操作太快
+	case "220034", "340011": // 操作太快
 		return 2, 0, err
 	case "340008", "340006", "3250002": // 340008黑名单, 340006封吧, 3250002永久封号
 		return 3, 0, err
@@ -64,8 +64,8 @@ func (user *Tieba) TiebaSign(fid, name string) (status int, bonusExp int, err er
 		return 4, 0, err
 	default:
 		if errorMsg == "" {
-			errorMsg = "未找到错误原因, 请检查：" + baiduUtil.ToString(body)
+			errorMsg = "贴吧签到时发生错误, 未能找到错误原因, 请检查：" + baiduUtil.ToString(body)
 		}
-		return 1, 0, err
+		return 1, 0, fmt.Errorf(errorMsg)
 	}
 }
