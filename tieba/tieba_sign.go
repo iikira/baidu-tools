@@ -3,7 +3,7 @@ package tieba
 import (
 	"fmt"
 	"github.com/bitly/go-simplejson"
-	"my/Baidu-Tools/util"
+	"github.com/iikira/baidu-tools/util"
 	"strconv"
 )
 

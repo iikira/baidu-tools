@@ -3,12 +3,12 @@ package tieba
 import (
 	"fmt"
 	"github.com/bitly/go-simplejson"
-	"my/Baidu-Tools"
-	"my/Baidu-Tools/util"
+	"github.com/iikira/baidu-tools"
+	"github.com/iikira/baidu-tools/util"
 	"time"
 )
 
-// NewWithBDUSS 检测BDUSS有效性, 同时获取百度uid, tbs和用户名
+// NewWithBDUSS 检测BDUSS有效性, 同时获取百度详细信息
 func NewWithBDUSS(bduss string) (*Tieba, error) {
 	post := map[string]string{
 		"bdusstoken":  bduss + "|null",

@@ -1,7 +1,7 @@
 package tieba
 
 import (
-	"my/Baidu-Tools"
+	"github.com/iikira/baidu-tools"
 )
 
 // Tieba 百度贴吧账号详细情况

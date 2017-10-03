@@ -3,10 +3,10 @@ package baidu
 import (
 	"errors"
 	"github.com/bitly/go-simplejson"
-	"my/Baidu-Tools/util"
+	"github.com/iikira/baidu-tools/util"
 )
 
-// NewUser 返回 BdUser 指针
+// NewUser 返回 Baidu 指针
 func NewUser(uid, name string) (b *Baidu, err error) {
 	b = &Baidu{
 		UID:  uid,

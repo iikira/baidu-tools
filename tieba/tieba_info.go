@@ -4,8 +4,8 @@ import (
 	"bytes"
 	"fmt"
 	"github.com/bitly/go-simplejson"
+	"github.com/iikira/baidu-tools/util"
 	"log"
-	"my/Baidu-Tools/util"
 	"regexp"
 	"strconv"
 )
