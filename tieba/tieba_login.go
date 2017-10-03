@@ -9,7 +9,7 @@ import (
 )
 
 // NewWithBDUSS 检测BDUSS有效性, 同时获取百度详细信息
-func NewWithBDUSS(bduss string) (*Tieba, error) {
+func NewWithBDUSS(bduss string) (*baidu.Baidu, error) {
 	post := map[string]string{
 		"bdusstoken":  bduss + "|null",
 		"channel_id":  "",
@@ -52,14 +52,12 @@ func NewWithBDUSS(bduss string) (*Tieba, error) {
 	if errCode != "0" {
 		return nil, fmt.Errorf("错误代码: %s, 消息: %s", baiduUtil.ErrorColor(errCode), baiduUtil.ErrorColor(errMsg))
 	}
-	u := Tieba{
-		Baidu: baidu.Baidu{
-			UID:  json.GetPath("user", "id").MustString(),
-			Name: json.GetPath("user", "name").MustString(),
-			Auth: baidu.Auth{
-				BDUSS: bduss,
-				Tbs:   json.GetPath("anti", "tbs").MustString(),
-			},
+	u := baidu.Baidu{
+		UID:  json.GetPath("user", "id").MustString(),
+		Name: json.GetPath("user", "name").MustString(),
+		Auth: baidu.Auth{
+			BDUSS: bduss,
+			Tbs:   json.GetPath("anti", "tbs").MustString(),
 		},
 	}
 	err = u.GetUserInfo()
