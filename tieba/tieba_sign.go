@@ -7,8 +7,8 @@ import (
 	"strconv"
 )
 
-// TiebaSign 执行贴吧签到
-func (user *Tieba) TiebaSign(fid, name string) (status int, bonusExp int, err error) {
+// DoTiebaSign 执行贴吧签到
+func (user *Tieba) DoTiebaSign(fid, name string) (errorCode, errorMsg string, bonusExp int, err error) {
 	timestamp := baiduUtil.BeijingTimeOption("")
 	post := map[string]string{
 		"BDUSS":       user.BDUSS,
@@ -38,34 +38,43 @@ func (user *Tieba) TiebaSign(fid, name string) (status int, bonusExp int, err er
 
 	body, err := baiduUtil.Fetch("POST", "http://c.tieba.baidu.com/c/c/forum/sign", nil, post, header)
 	if err != nil {
-		return 1, 0, fmt.Errorf("POST 错误: %s", err)
+		return "", "", 0, fmt.Errorf("POST 错误: %s", err)
 	}
 	json, err := simplejson.NewJson(body)
 	if err != nil {
-		return 1, 0, fmt.Errorf("json解析错误: %s", err)
+		return "", "", 0, fmt.Errorf("json解析错误: %s", err)
 	}
+	errorCode = json.Get("error_code").MustString()
+	errorMsg = json.Get("error_msg").MustString()
 	if signBonusPoint, ok := json.Get("user_info").CheckGet("sign_bonus_point"); ok { // 签到成功, 获取经验
 		bonusExp, _ = strconv.Atoi(signBonusPoint.MustString())
-		return 0, bonusExp, nil
+		return errorCode, "", bonusExp, nil
 	}
-	errorCode := json.Get("error_code").MustString()
-	errorMsg := json.Get("error_msg").MustString()
+	if errorMsg == "" {
+		errorMsg = "贴吧签到时发生错误, 未能找到错误原因, 请检查：" + baiduUtil.ToString(body)
+	}
+	return errorCode, errorMsg, 0, nil
+}
+
+// TiebaSign 执行贴吧签到
+func (user *Tieba) TiebaSign(fid, name string) (status int, bonusExp int, err error) {
+	errorCode, errorMsg, bonusExp, err := user.DoTiebaSign(fid, name)
+	if err != nil {
+		return 1, bonusExp, err
+	}
 	err = fmt.Errorf("贴吧签到时发生错误, 错误代码: %s, 消息: %s", baiduUtil.ErrorColor(errorCode), baiduUtil.ErrorColor(errorMsg))
 	switch errorCode {
 	case "160002": // 已签到
 		return 0, 0, nil
-	case "110001": // 签名错误
-		return 1, 0, nil
 	case "220034", "340011": // 操作太快
 		return 2, 0, err
-	case "340008", "340006", "3250002": // 340008黑名单, 340006封吧, 3250002永久封号
+	case "300000": // 未知错误
+		return 2, 0, err
+	case "340008", "340006", "110001", "3250002": // 340008黑名单, 340006封吧, 110001签名错误, 3250002永久封号
 		return 3, 0, err
 	case "1", "1990055": // 1掉线, 1990055未实名
 		return 4, 0, err
 	default:
-		if errorMsg == "" {
-			errorMsg = "贴吧签到时发生错误, 未能找到错误原因, 请检查：" + baiduUtil.ToString(body)
-		}
-		return 1, 0, fmt.Errorf(errorMsg)
+		return 1, 0, err
 	}
 }
