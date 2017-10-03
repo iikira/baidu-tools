@@ -1,7 +1,7 @@
 package baidu
 
 import (
-	"errors"
+	"fmt"
 	"github.com/bitly/go-simplejson"
 	"github.com/iikira/baidu-tools/util"
 )
@@ -20,7 +20,7 @@ func NewUser(uid, name string) (b *Baidu, err error) {
 func (b *Baidu) GetUserInfo() error {
 	switch {
 	case b.UID == "" && b.Name == "":
-		return errors.New("NewUser: name and uid is nil")
+		return fmt.Errorf("NewUser: name and uid is nil")
 	case b.UID != "" && b.Name != "":
 		fallthrough
 	case b.UID == "" && b.Name != "":
@@ -35,7 +35,7 @@ func (b *Baidu) GetUserInfo() error {
 		userJSON := json.Get("data")
 		byteUID, err := userJSON.Get("id").MarshalJSON()
 		if err != nil {
-			return errors.New("Json 解析错误: " + err.Error())
+			return fmt.Errorf("Json 解析错误: %s", err)
 		}
 		b.UID = string(byteUID)
 		b.Age = userJSON.Get("tb_age").MustString()
@@ -74,5 +74,25 @@ func (b *Baidu) GetUserInfo() error {
 			b.Sex = "unknown"
 		}
 	}
+	return nil
+}
+
+// GetTbs 获取贴吧TBS
+func (a *Auth) GetTbs() error {
+	if a.BDUSS == "" {
+		return fmt.Errorf("获取TBS出错: BDUSS为空")
+	}
+	hd := map[string]string{
+		"Cookie": "BDUSS=" + a.BDUSS,
+	}
+	body, err := baiduUtil.Fetch("GET", "http://tieba.baidu.com/dc/common/tbs", nil, nil, hd)
+	if err != nil {
+		return fmt.Errorf("获取TBS出错: %s", err)
+	}
+	json, err := simplejson.NewJson(body)
+	if err != nil {
+		return fmt.Errorf("json解析出错: %s", err)
+	}
+	a.Tbs = json.Get("tbs").MustString()
 	return nil
 }
