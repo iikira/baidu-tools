@@ -76,34 +76,3 @@ func (b *Baidu) GetUserInfo() error {
 	}
 	return nil
 }
-
-func NewAuth(bduss string) (*Auth, error) {
-	a := &Auth{
-		BDUSS: bduss,
-	}
-	err := a.getTbs()
-	if err != nil {
-		return nil, err
-	}
-	return a, nil
-}
-
-// getTbs 获取贴吧TBS
-func (a *Auth) getTbs() error {
-	if a.BDUSS == "" {
-		return fmt.Errorf("获取TBS出错: BDUSS为空")
-	}
-	hd := map[string]string{
-		"Cookie": "BDUSS=" + a.BDUSS,
-	}
-	body, err := baiduUtil.Fetch("GET", "http://tieba.baidu.com/dc/common/tbs", nil, nil, hd)
-	if err != nil {
-		return fmt.Errorf("获取TBS出错: %s", err)
-	}
-	json, err := simplejson.NewJson(body)
-	if err != nil {
-		return fmt.Errorf("json解析出错: %s", err)
-	}
-	a.Tbs = json.Get("tbs").MustString()
-	return nil
-}

@@ -7,11 +7,5 @@ type Baidu struct {
 	NameShow, // 显示的用户名(昵称)
 	Sex, // 性别
 	Age string // 帐号年龄
-	Auth
-}
-
-// Auth 百度验证
-type Auth struct {
-	BDUSS, // 百度BDUSS
-	Tbs string // 贴吧tbs
+	Auth *Auth
 }

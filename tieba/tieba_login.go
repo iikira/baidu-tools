@@ -9,7 +9,7 @@ import (
 )
 
 // NewWithBDUSS 检测BDUSS有效性, 同时获取百度详细信息
-func NewWithBDUSS(bduss string) (*baidu.Baidu, error) {
+func NewWithBDUSS(bduss string) (*Tieba, error) {
 	post := map[string]string{
 		"bdusstoken":  bduss + "|null",
 		"channel_id":  "",
@@ -52,14 +52,42 @@ func NewWithBDUSS(bduss string) (*baidu.Baidu, error) {
 	if errCode != "0" {
 		return nil, fmt.Errorf("错误代码: %s, 消息: %s", baiduUtil.ErrorColor(errCode), baiduUtil.ErrorColor(errMsg))
 	}
-	u := baidu.Baidu{
-		UID:  json.GetPath("user", "id").MustString(),
-		Name: json.GetPath("user", "name").MustString(),
-		Auth: baidu.Auth{
-			BDUSS: bduss,
-			Tbs:   json.GetPath("anti", "tbs").MustString(),
+	u := Tieba{
+		Baidu: &baidu.Baidu{
+			UID:  json.GetPath("user", "id").MustString(),
+			Name: json.GetPath("user", "name").MustString(),
+			Auth: baidu.NewAuth(bduss, "", ""),
 		},
+		Tbs: json.GetPath("anti", "tbs").MustString(),
 	}
-	err = u.GetUserInfo()
-	return &u, err
+	return &u, nil
+}
+
+// GetTbs 获取贴吧TBS
+func (t *Tieba) GetTbs() error {
+	bduss, _, _ := t.Baidu.Auth.GetAuth()
+	if bduss == "" {
+		return fmt.Errorf("获取贴吧TBS出错: BDUSS为空")
+	}
+	tbs, err := GetTbs(bduss)
+	if err != nil {
+		return err
+	}
+	t.Tbs = tbs
+	return nil
+}
+
+// GetTbs 获取贴吧TBS
+func GetTbs(bduss string) (tbs string, err error) {
+	body, err := baiduUtil.Fetch("GET", "http://tieba.baidu.com/dc/common/tbs", nil, nil, map[string]string{
+		"Cookie": "BDUSS=" + bduss,
+	})
+	if err != nil {
+		return "", fmt.Errorf("获取贴吧TBS网络错误: %s", err)
+	}
+	json, err := simplejson.NewJson(body)
+	if err != nil {
+		return "", fmt.Errorf("获取贴吧TBS json解析出错: %s", err)
+	}
+	return json.Get("tbs").MustString(), nil
 }

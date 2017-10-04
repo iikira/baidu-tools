@@ -12,18 +12,31 @@ import (
 
 // GetBars 获取贴吧列表
 func (user *Tieba) GetBars() error {
-	if _, err := strconv.Atoi(user.UID); err != nil {
+	bars, err := GetBars(user.Baidu.UID)
+	if err != nil {
 		return err
 	}
-	var pageNo uint16
+	user.Bars = bars
+	return nil
+}
+
+// GetBars 获取贴吧列表
+func GetBars(uid string) ([]Bar, error) {
+	if _, err := strconv.Atoi(uid); err != nil {
+		return nil, fmt.Errorf("百度 UID 非法")
+	}
+	var (
+		pageNo uint16
+		bars   []Bar
+	)
 	bajsonRE := regexp.MustCompile("{\"id\":\".+?\"}")
 	for {
 		pageNo++
-		rawQuery := fmt.Sprintf("_client_version=6.9.2.1&page_no=%d&page_size=200&uid=%s", pageNo, user.UID)
+		rawQuery := fmt.Sprintf("_client_version=6.9.2.1&page_no=%d&page_size=200&uid=%s", pageNo, uid)
 		//贴吧客户端签名
 		body, err := baiduUtil.HTTPGet("http://c.tieba.baidu.com/c/f/forum/like?" + baiduUtil.TiebaClientRawQuerySignature(rawQuery))
 		if err != nil {
-			return err
+			return nil, fmt.Errorf("获取贴吧列表网络错误, %s", err)
 		}
 		if !bytes.Contains(body, []byte("has_more")) { // 贴吧服务器响应有误, 再试一次
 			pageNo--
@@ -36,11 +49,11 @@ func (user *Tieba) GetBars() error {
 		for _, bajsonStr := range jsonSlice {
 			bajson, err := simplejson.NewJson(bajsonStr)
 			if err != nil {
-				return err
+				return nil, fmt.Errorf("获取贴吧列表json解析错误, %s", err)
 			}
 			if curScore, ok := bajson.CheckGet("cur_score"); ok {
 				exp, _ := strconv.Atoi(curScore.MustString())
-				user.Bars = append(user.Bars, Bar{
+				bars = append(bars, Bar{
 					Fid:   bajson.Get("id").MustString(),
 					Name:  bajson.Get("name").MustString(),
 					Level: bajson.Get("level_id").MustString(),
@@ -49,20 +62,21 @@ func (user *Tieba) GetBars() error {
 			}
 		}
 	}
-	return nil
+	return bars, nil
 }
 
 // GetTiebaFid 获取贴吧fid值
 func GetTiebaFid(tiebaName string) (fid string, err error) {
 	b, err := baiduUtil.HTTPGet("http://tieba.baidu.com/f/commit/share/fnameShareApi?ie=utf-8&fname=" + tiebaName)
 	if err != nil {
-		return
+		return "", fmt.Errorf("获取贴吧fid网络错误, %s", err)
 	}
-	c := regexp.MustCompile(`"data":{"fid":(.*?),"can_send_pics":`).FindSubmatch(b)
-	if len(c) > 1 {
-		fid = string(c[1])
+	json, err := simplejson.NewJson(b)
+	if err != nil {
+		return "", fmt.Errorf("获取贴吧fid json解析错误, %s", err)
 	}
-	return
+	intFid := json.GetPath("data", "fid").MustInt()
+	return fmt.Sprint(intFid), nil
 }
 
 // IsTiebaExist 检测贴吧是否存在
