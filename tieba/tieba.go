@@ -8,6 +8,7 @@ import (
 type Tieba struct {
 	Baidu *baidu.Baidu
 	Tbs   string
+	Stat  *Stat
 	Bars  []Bar //要执行任务的贴吧列表
 }
 
@@ -17,4 +18,10 @@ type Bar struct {
 	Name, // 名字
 	Level string // 个人等级
 	Exp int // 个人经验
+}
+
+// Stat 统计数据
+type Stat struct {
+	LikeForumNum int
+	PostNum      int
 }

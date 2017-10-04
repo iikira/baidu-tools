@@ -2,10 +2,10 @@ package baidu
 
 // Baidu 百度帐号详细情况
 type Baidu struct {
-	UID, // 百度ID对应的uid
-	Name, // 真实ID
-	NameShow, // 显示的用户名(昵称)
-	Sex, // 性别
-	Age string // 帐号年龄
-	Auth *Auth
+	UID      uint64  // 百度ID对应的uid
+	Name     string  // 真实ID
+	NameShow string  // 显示的用户名(昵称)
+	Sex      string  // 性别
+	Age      float64 // 帐号年龄
+	Auth     *Auth
 }

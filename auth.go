@@ -7,6 +7,7 @@ type Auth struct {
 	STOKEN string
 }
 
+// NewAuth 提供 bduss, ptoken, stoken 返回 Auth 指针
 func NewAuth(bduss, ptoken, stoken string) *Auth {
 	return &Auth{
 		BDUSS:  bduss,

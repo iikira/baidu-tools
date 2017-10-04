@@ -5,28 +5,31 @@ import (
 	"github.com/bitly/go-simplejson"
 	"github.com/iikira/baidu-tools"
 	"github.com/iikira/baidu-tools/util"
+	"strconv"
 	"time"
 )
 
 // NewWithBDUSS 检测BDUSS有效性, 同时获取百度详细信息
 func NewWithBDUSS(bduss string) (*Tieba, error) {
+	timestamp := baiduUtil.BeijingTimeOption("")
 	post := map[string]string{
 		"bdusstoken":  bduss + "|null",
 		"channel_id":  "",
 		"channel_uid": "",
 		"stErrorNums": "0",
 		"subapp_type": "mini",
-		"timestamp":   baiduUtil.BeijingTimeOption("") + "922",
+		"timestamp":   timestamp + "922",
 	}
+	baiduUtil.TiebaClientSignature(post)
+
 	header := map[string]string{
 		"Content-Type": "application/x-www-form-urlencoded",
 		"Cookie":       "ka=open",
 		"net":          "1",
 		"User-Agent":   "bdtb for Android 6.9.2.1",
-		"client_logid": baiduUtil.BeijingTimeOption("") + "416",
+		"client_logid": timestamp + "416",
 		"Connection":   "Keep-Alive",
 	}
-	baiduUtil.TiebaClientSignature(post)
 
 	var (
 		body []byte
@@ -38,29 +41,35 @@ func NewWithBDUSS(bduss string) (*Tieba, error) {
 			break
 		}
 		if errorTimes >= 3 {
-			return nil, fmt.Errorf("检测帐号状态失败, 错误次数超过3次: %s", err)
+			return nil, fmt.Errorf("检测BDUSS有效性失败, 错误次数超过3次: %s", err)
 		}
 		time.Sleep(1e9)
 	}
 	json, err := simplejson.NewJson(body)
 	if err != nil {
-		return nil, fmt.Errorf("json解析出错: %s", err)
+		return nil, fmt.Errorf("检测BDUSS有效性json解析出错: %s", err)
 	}
-
 	errCode := json.Get("error_code").MustString()
 	errMsg := json.Get("error_msg").MustString()
 	if errCode != "0" {
-		return nil, fmt.Errorf("错误代码: %s, 消息: %s", baiduUtil.ErrorColor(errCode), baiduUtil.ErrorColor(errMsg))
+		return nil, fmt.Errorf("检测BDUSS有效性错误代码: %s, 消息: %s", baiduUtil.ErrorColor(errCode), baiduUtil.ErrorColor(errMsg))
 	}
-	u := Tieba{
+	uidStr := json.GetPath("user", "id").MustString()
+	uid, _ := strconv.ParseUint(uidStr, 10, 64)
+
+	t := &Tieba{
 		Baidu: &baidu.Baidu{
-			UID:  json.GetPath("user", "id").MustString(),
+			UID:  uid,
 			Name: json.GetPath("user", "name").MustString(),
 			Auth: baidu.NewAuth(bduss, "", ""),
 		},
 		Tbs: json.GetPath("anti", "tbs").MustString(),
 	}
-	return &u, nil
+	err = t.FlushUserInfo()
+	if err != nil {
+		return nil, err
+	}
+	return t, nil
 }
 
 // GetTbs 获取贴吧TBS

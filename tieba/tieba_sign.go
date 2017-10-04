@@ -48,10 +48,10 @@ func (user *Tieba) DoTiebaSign(fid, name string) (errorCode, errorMsg string, bo
 	errorMsg = json.Get("error_msg").MustString()
 	if signBonusPoint, ok := json.Get("user_info").CheckGet("sign_bonus_point"); ok { // 签到成功, 获取经验
 		bonusExp, _ = strconv.Atoi(signBonusPoint.MustString())
-		return errorCode, "", bonusExp, nil
+		return errorCode, errorMsg, bonusExp, nil
 	}
 	if errorMsg == "" {
-		errorMsg = "贴吧签到时发生错误, 未能找到错误原因, 请检查：" + baiduUtil.ToString(body)
+		return errorCode, errorMsg, 0, fmt.Errorf("贴吧签到时发生错误, 未能找到错误原因, 请检查：" + baiduUtil.ToString(body))
 	}
 	return errorCode, errorMsg, 0, nil
 }
@@ -64,17 +64,17 @@ func (user *Tieba) TiebaSign(fid, name string) (status int, bonusExp int, err er
 	}
 	err = fmt.Errorf("贴吧签到时发生错误, 错误代码: %s, 消息: %s", baiduUtil.ErrorColor(errorCode), baiduUtil.ErrorColor(errorMsg))
 	switch errorCode {
-	case "160002": // 已签到
-		return 0, 0, nil
+	case "0", "160002": // 	签到成功 / 已签到
+		return 0, bonusExp, nil
 	case "220034", "340011": // 操作太快
-		return 2, 0, err
+		return 2, bonusExp, err
 	case "300000": // 未知错误
-		return 2, 0, err
+		return 2, bonusExp, err
 	case "340008", "340006", "110001", "3250002": // 340008黑名单, 340006封吧, 110001签名错误, 3250002永久封号
-		return 3, 0, err
+		return 3, bonusExp, err
 	case "1", "1990055": // 1掉线, 1990055未实名
-		return 4, 0, err
+		return 4, bonusExp, err
 	default:
-		return 1, 0, err
+		return 1, bonusExp, err
 	}
 }

@@ -4,27 +4,92 @@ import (
 	"bytes"
 	"fmt"
 	"github.com/bitly/go-simplejson"
+	"github.com/iikira/baidu-tools"
 	"github.com/iikira/baidu-tools/util"
 	"log"
 	"regexp"
 	"strconv"
 )
 
-// GetBars 获取贴吧列表
-func (user *Tieba) GetBars() error {
-	bars, err := GetBars(user.Baidu.UID)
+// NewUserInfoByUID 提供 UID 获取百度帐号详细信息
+func NewUserInfoByUID(uid uint64) (t *Tieba, err error) {
+	b := baidu.NewUser(uid, "")
+	rawQuery := "has_plist=0&need_post_count=1&rn=1&uid=" + fmt.Sprint(b.UID)
+	urlStr := "http://c.tieba.baidu.com/c/u/user/profile?" + baiduUtil.TiebaClientRawQuerySignature(rawQuery)
+	body, err := baiduUtil.HTTPGet(urlStr)
+	if err != nil {
+		return nil, err
+	}
+	json, err := simplejson.NewJson(body)
+	if err != nil {
+		return nil, err
+	}
+	userJSON := json.GetPath("user")
+	b.Name = userJSON.Get("name").MustString()
+	b.NameShow = userJSON.Get("name_show").MustString()
+	b.Age = userJSON.Get("tb_age").MustFloat64()
+	sex := userJSON.Get("sex").MustInt()
+	switch sex {
+	case 1:
+		b.Sex = "♂"
+	case 2:
+		b.Sex = "♀"
+	default:
+		b.Sex = "unknown"
+	}
+
+	t = &Tieba{
+		Baidu: b,
+		Stat: &Stat{
+			LikeForumNum: userJSON.Get("like_forum_num").MustInt(),
+			PostNum:      userJSON.Get("post_num").MustInt(),
+		},
+	}
+	return t, nil
+}
+
+// NewUserInfoByName 提供 name (百度用户名) 获取百度帐号详细信息
+func NewUserInfoByName(name string) (t *Tieba, err error) {
+	body, err := baiduUtil.HTTPGet("http://tieba.baidu.com/home/get/panel?un=" + name)
+	if err != nil {
+		return nil, err
+	}
+	json, err := simplejson.NewJson(body)
+	if err != nil {
+		return nil, err
+	}
+	return NewUserInfoByUID(json.GetPath("data", "id").MustUint64())
+}
+
+// FlushUserInfo 提供 name (百度用户名) 获取百度帐号详细信息
+func (t *Tieba) FlushUserInfo(uids ...uint64) error {
+	switch len(uids) {
+	case 0:
+	case 1:
+		t.Baidu.UID = uids[0]
+	}
+	this, err := NewUserInfoByUID(t.Baidu.UID)
 	if err != nil {
 		return err
 	}
-	user.Bars = bars
+	this.Baidu.Auth = t.Baidu.Auth
+	t.Baidu = this.Baidu
+	t.Stat = this.Stat
 	return nil
 }
 
 // GetBars 获取贴吧列表
-func GetBars(uid string) ([]Bar, error) {
-	if _, err := strconv.Atoi(uid); err != nil {
-		return nil, fmt.Errorf("百度 UID 非法")
+func (t *Tieba) GetBars() error {
+	bars, err := GetBars(t.Baidu.UID)
+	if err != nil {
+		return err
 	}
+	t.Bars = bars
+	return nil
+}
+
+// GetBars 获取贴吧列表
+func GetBars(uid uint64) ([]Bar, error) {
 	var (
 		pageNo uint16
 		bars   []Bar
@@ -32,7 +97,7 @@ func GetBars(uid string) ([]Bar, error) {
 	bajsonRE := regexp.MustCompile("{\"id\":\".+?\"}")
 	for {
 		pageNo++
-		rawQuery := fmt.Sprintf("_client_version=6.9.2.1&page_no=%d&page_size=200&uid=%s", pageNo, uid)
+		rawQuery := fmt.Sprintf("_client_version=6.9.2.1&page_no=%d&page_size=200&uid=%d", pageNo, uid)
 		//贴吧客户端签名
 		body, err := baiduUtil.HTTPGet("http://c.tieba.baidu.com/c/f/forum/like?" + baiduUtil.TiebaClientRawQuerySignature(rawQuery))
 		if err != nil {
