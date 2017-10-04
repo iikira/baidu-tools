@@ -2,23 +2,15 @@ package baidu
 
 // Auth 百度验证
 type Auth struct {
-	bduss, // 百度BDUSS
-	ptoken,
-	stoken string
+	BDUSS, // 百度BDUSS
+	PTOKEN,
+	STOKEN string
 }
 
 func NewAuth(bduss, ptoken, stoken string) *Auth {
 	return &Auth{
-		bduss:  bduss,
-		ptoken: ptoken,
-		stoken: stoken,
+		BDUSS:  bduss,
+		PTOKEN: ptoken,
+		STOKEN: stoken,
 	}
-}
-
-func (a *Auth) GetAuth() (bduss, ptoken, stoken string) {
-	return a.bduss, a.ptoken, a.stoken
-}
-
-func (a *Auth) BDUSS() string {
-	return a.bduss
 }

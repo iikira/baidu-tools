@@ -65,7 +65,7 @@ func NewWithBDUSS(bduss string) (*Tieba, error) {
 
 // GetTbs 获取贴吧TBS
 func (t *Tieba) GetTbs() error {
-	bduss, _, _ := t.Baidu.Auth.GetAuth()
+	bduss := t.Baidu.Auth.BDUSS
 	if bduss == "" {
 		return fmt.Errorf("获取贴吧TBS出错: BDUSS为空")
 	}

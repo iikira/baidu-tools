@@ -10,9 +10,8 @@ import (
 // DoTiebaSign 执行贴吧签到
 func (user *Tieba) DoTiebaSign(fid, name string) (errorCode, errorMsg string, bonusExp int, err error) {
 	timestamp := baiduUtil.BeijingTimeOption("")
-	bduss, _, _ := user.Baidu.Auth.GetAuth()
 	post := map[string]string{
-		"BDUSS":       bduss,
+		"BDUSS":       user.Baidu.Auth.BDUSS,
 		"_client_id":  "wappc_" + timestamp + "150_607",
 		"fid":         fid,
 		"kw":          name,
