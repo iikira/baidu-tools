@@ -7,8 +7,8 @@ import (
 	"strconv"
 )
 
-// DoTiebaSign 执行贴吧签到
-func (user *Tieba) DoTiebaSign(fid, name string) (errorCode, errorMsg string, bonusExp int, err error) {
+// TiebaSign 执行贴吧签到
+func (user *Tieba) TiebaSign(fid, name string) (errorCode, errorMsg string, bonusExp int, err error) {
 	timestamp := baiduUtil.BeijingTimeOption("")
 	post := map[string]string{
 		"BDUSS":       user.Baidu.Auth.BDUSS,
@@ -56,9 +56,9 @@ func (user *Tieba) DoTiebaSign(fid, name string) (errorCode, errorMsg string, bo
 	return errorCode, errorMsg, 0, nil
 }
 
-// TiebaSign 执行贴吧签到
-func (user *Tieba) TiebaSign(fid, name string) (status int, bonusExp int, err error) {
-	errorCode, errorMsg, bonusExp, err := user.DoTiebaSign(fid, name)
+// DoTiebaSign 执行贴吧签到
+func (user *Tieba) DoTiebaSign(fid, name string) (status int, bonusExp int, err error) {
+	errorCode, errorMsg, bonusExp, err := user.TiebaSign(fid, name)
 	if err != nil {
 		return 1, bonusExp, err
 	}
