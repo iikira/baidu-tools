@@ -4,9 +4,8 @@ import "sync"
 
 // WaitGroup 在 sync.WaitGroup 的基础上, 新增线程控制功能
 type WaitGroup struct {
-	wg  sync.WaitGroup
-	p   chan struct{}
-	mup chan struct{}
+	wg sync.WaitGroup
+	p  chan struct{}
 }
 
 // NewWaitGroup returns a pointer to a new `WaitGroup` object.
@@ -17,7 +16,6 @@ func NewWaitGroup(thread int) (w *WaitGroup) {
 		return
 	}
 	w.p = make(chan struct{}, thread)
-	w.mup = make(chan struct{})
 	return
 }
 
