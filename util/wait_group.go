@@ -19,26 +19,22 @@ func NewWaitGroup(thread int) (w *WaitGroup) {
 	return
 }
 
-// Add 在 sync.WaitGroup 的基础上, 新增线程控制功能
-func (w *WaitGroup) Add(delta int) {
-	w.wg.Add(delta)
+// AddDelta 在 sync.WaitGroup 的基础上, 新增线程控制功能
+func (w *WaitGroup) AddDelta() {
+	w.wg.Add(1)
 	if w.p == nil {
 		return
 	}
-	if delta >= 0 {
-		for i := 0; i < delta; i++ {
-			w.p <- struct{}{}
-		}
-	} else {
-		for i := 0; i > delta; i-- {
-			<-w.p
-		}
-	}
+	w.p <- struct{}{}
 }
 
-// Done 参照 sync.WaitGroup 的 Done 方法
+// Done 在 sync.WaitGroup 的基础上, 新增线程控制功能
 func (w *WaitGroup) Done() {
-	w.wg.Add(-1)
+	w.wg.Done()
+	if w.p == nil {
+		return
+	}
+	<-w.p
 }
 
 // Wait 参照 sync.WaitGroup 的 Wait 方法
