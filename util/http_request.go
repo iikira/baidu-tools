@@ -58,6 +58,8 @@ func Fetch(method string, urlStr string, jar *cookiejar.Jar, post interface{}, h
 			obody = strings.NewReader(query.Encode())
 		case string:
 			obody = strings.NewReader(value)
+		case []byte:
+			obody = bytes.NewReader(value)
 		}
 	}
 	req, err = http.NewRequest(method, urlStr, obody)
