@@ -9,12 +9,19 @@ import (
 	"net/http/cookiejar"
 	"net/url"
 	"strings"
+	"time"
 )
 
 var (
 	//IsGzip 是否启用Gzip
-	IsGzip = true
+	IsGzip  = true
+	timeout = (time.Duration)(3e10)
 )
+
+// SetTimeout 设置 http 请求超时时间 默认30s
+func SetTimeout(t time.Duration) {
+	timeout = t
+}
 
 // HTTPGet 简单实现 http 访问 GET 请求
 func HTTPGet(urlStr string) (body []byte, err error) {
@@ -33,7 +40,7 @@ func Fetch(method string, urlStr string, jar *cookiejar.Jar, post interface{}, h
 		req   *http.Request
 		obody io.Reader
 	)
-	httpClient := &http.Client{Timeout: 3e10} // 30s
+	httpClient := &http.Client{Timeout: timeout} // 30s
 	if jar != nil {
 		httpClient.Jar = jar
 	}
