@@ -13,10 +13,14 @@ import (
 )
 
 var (
-	//IsGzip 是否启用Gzip
-	IsGzip  = true
+	isGzip  = true
 	timeout = (time.Duration)(3e10)
 )
+
+//EnableGzip 是否启用Gzip
+func EnableGzip(b bool) {
+	isGzip = b
+}
 
 // SetTimeout 设置 http 请求超时时间 默认30s
 func SetTimeout(t time.Duration) {
@@ -49,7 +53,7 @@ func Fetch(method string, urlStr string, jar *cookiejar.Jar, post interface{}, h
 		httpClient.Transport = &http.Transport{TLSClientConfig: &tls.Config{InsecureSkipVerify: true}}
 	}
 
-	if IsGzip {
+	if isGzip {
 		if _, ok := header["Accept-Encoding"]; !ok && header != nil {
 			header["Accept-Encoding"] = "gzip"
 		}
@@ -86,7 +90,7 @@ func Fetch(method string, urlStr string, jar *cookiejar.Jar, post interface{}, h
 	}
 
 	body, _ = ioutil.ReadAll(resp.Body)
-	if IsGzip {
+	if isGzip {
 		undatas, err := DecompressGZIP(bytes.NewReader(body))
 		if err == nil {
 			return undatas, nil
