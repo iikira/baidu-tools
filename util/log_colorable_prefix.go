@@ -15,7 +15,7 @@ var (
 type logWriter struct{}
 
 func (logWriter) Write(bytes []byte) (int, error) {
-	return fmt.Fprintf(color.Output, "["+BeijingTimeOption("Refer")+"] "+string(bytes))
+	return fmt.Fprint(color.Output, "["+BeijingTimeOption("Refer")+"] "+string(bytes))
 }
 
 // SetLogPrefix 设置日志输出的时间前缀
