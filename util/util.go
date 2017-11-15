@@ -87,9 +87,9 @@ func Md5Encrypt(str interface{}) string {
 	md5Ctx := md5.New()
 	switch value := str.(type) {
 	case string:
-		md5Ctx.Write(ToBytes(str.(string)))
+		md5Ctx.Write([]byte(str.(string)))
 	case *string:
-		md5Ctx.Write(ToBytes(*str.(*string)))
+		md5Ctx.Write([]byte(*str.(*string)))
 	case []byte:
 		md5Ctx.Write(str.([]byte))
 	case *[]byte:
