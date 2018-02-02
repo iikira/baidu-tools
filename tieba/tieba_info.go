@@ -6,6 +6,7 @@ import (
 	"github.com/iikira/BaiduPCS-Go/requester"
 	"github.com/iikira/baidu-tools"
 	"github.com/iikira/baidu-tools/tieba/tiebautil"
+	"strconv"
 )
 
 // NewUserInfoByUID 提供 UID 获取百度帐号详细信息
@@ -31,7 +32,9 @@ func NewUserInfoByUID(uid uint64) (t *Tieba, err error) {
 	userJSON := json.GetPath("user")
 	b.Name = userJSON.Get("name").MustString()
 	b.NameShow = userJSON.Get("name_show").MustString()
-	b.Age = userJSON.Get("tb_age").MustFloat64()
+
+	ageStr := userJSON.Get("tb_age").MustString()
+	b.Age, _ = strconv.ParseFloat(ageStr, 64)
 
 	sex := userJSON.Get("sex").MustInt()
 	switch sex {

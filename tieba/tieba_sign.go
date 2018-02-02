@@ -40,12 +40,12 @@ func (user *Tieba) TiebaSign(fid, name string) (errorCode, errorMsg string, bonu
 
 	body, err := requester.DefaultClient.Fetch("POST", "http://c.tieba.baidu.com/c/c/forum/sign", post, header)
 	if err != nil {
-		return "", "", 0, fmt.Errorf("POST 错误: %s", err)
+		return "", "", 0, fmt.Errorf("贴吧签到网络错误: %s", err)
 	}
 
 	json, err := simplejson.NewJson(body)
 	if err != nil {
-		return "", "", 0, fmt.Errorf("json解析错误: %s", err)
+		return "", "", 0, fmt.Errorf("贴吧签到json解析错误: %s", err)
 	}
 
 	errorCode = json.Get("error_code").MustString()

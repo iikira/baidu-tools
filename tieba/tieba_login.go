@@ -59,7 +59,7 @@ func NewWithBDUSS(bduss string) (*Tieba, error) {
 			UID:  uid,
 			Name: userJSON.Get("name").MustString(),
 			Auth: &baidu.Auth{
-				BDUSS: bduss,
+				BDUSS: userJSON.Get("BDUSS").MustString(),
 			},
 		},
 		Tbs: json.GetPath("anti", "tbs").MustString(),
