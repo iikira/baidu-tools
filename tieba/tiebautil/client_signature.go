@@ -1,7 +1,9 @@
-package baiduUtil
+package tiebautil
 
 import (
 	"bytes"
+	"crypto/md5"
+	"fmt"
 	"sort"
 	"strings"
 )
@@ -29,10 +31,10 @@ func TiebaClientSignature(post map[string]string) {
 		bb.WriteString(key + "=" + post[key])
 	}
 	bb.WriteString("tiebaclient!!!")
-	post["sign"] = Md5Encrypt(bb.Bytes())
+	post["sign"] = fmt.Sprintf("%x", md5.Sum(bb.Bytes()))
 }
 
 // TiebaClientRawQuerySignature 给 rawQuery 进行贴吧客户端签名
-func TiebaClientRawQuerySignature(rawQuery string) string {
-	return rawQuery + "&sign=" + Md5Encrypt(strings.Replace(rawQuery, "&", "", -1)+"tiebaclient!!!")
+func TiebaClientRawQuerySignature(rawQuery string) (sign string) {
+	return rawQuery + "&sign=" + fmt.Sprintf("%x", md5.Sum([]byte(strings.Replace(rawQuery, "&", "", -1)+"tiebaclient!!!")))
 }

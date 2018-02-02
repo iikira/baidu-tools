@@ -3,13 +3,15 @@ package tieba
 import (
 	"fmt"
 	"github.com/bitly/go-simplejson"
-	"github.com/iikira/baidu-tools/util"
+	"github.com/iikira/BaiduPCS-Go/pcsutil"
+	"github.com/iikira/BaiduPCS-Go/requester"
+	"github.com/iikira/baidu-tools/tieba/tiebautil"
 	"strconv"
 )
 
-// TiebaSign 执行贴吧签到
+// TiebaSign 贴吧签到
 func (user *Tieba) TiebaSign(fid, name string) (errorCode, errorMsg string, bonusExp int, err error) {
-	timestamp := baiduUtil.BeijingTimeOption("")
+	timestamp := pcsutil.BeijingTimeOption("")
 	post := map[string]string{
 		"BDUSS":       user.Baidu.Auth.BDUSS,
 		"_client_id":  "wappc_" + timestamp + "150_607",
@@ -25,7 +27,7 @@ func (user *Tieba) TiebaSign(fid, name string) (errorCode, errorMsg string, bonu
 		"tbs":         user.Tbs,
 		"timestamp":   timestamp + "083",
 	}
-	baiduUtil.TiebaClientSignature(post)
+	tiebautil.TiebaClientSignature(post)
 
 	header := map[string]string{
 		"Content-Type": "application/x-www-form-urlencoded",
@@ -36,23 +38,28 @@ func (user *Tieba) TiebaSign(fid, name string) (errorCode, errorMsg string, bonu
 		"Connection":   "Keep-Alive",
 	}
 
-	body, err := baiduUtil.Fetch("POST", "http://c.tieba.baidu.com/c/c/forum/sign", nil, post, header)
+	body, err := requester.DefaultClient.Fetch("POST", "http://c.tieba.baidu.com/c/c/forum/sign", post, header)
 	if err != nil {
 		return "", "", 0, fmt.Errorf("POST 错误: %s", err)
 	}
+
 	json, err := simplejson.NewJson(body)
 	if err != nil {
 		return "", "", 0, fmt.Errorf("json解析错误: %s", err)
 	}
+
 	errorCode = json.Get("error_code").MustString()
 	errorMsg = json.Get("error_msg").MustString()
+
 	if signBonusPoint, ok := json.Get("user_info").CheckGet("sign_bonus_point"); ok { // 签到成功, 获取经验
 		bonusExp, _ = strconv.Atoi(signBonusPoint.MustString())
 		return errorCode, errorMsg, bonusExp, nil
 	}
+
 	if errorMsg == "" {
-		return errorCode, errorMsg, 0, fmt.Errorf("贴吧签到时发生错误, 未能找到错误原因, 请检查：" + baiduUtil.ToString(body))
+		return errorCode, errorMsg, 0, fmt.Errorf("贴吧签到时发生错误, 未能找到错误原因, 请检查：" + pcsutil.ToString(body))
 	}
+
 	return errorCode, errorMsg, 0, nil
 }
 
@@ -62,7 +69,8 @@ func (user *Tieba) DoTiebaSign(fid, name string) (status int, bonusExp int, err 
 	if err != nil {
 		return 1, bonusExp, err
 	}
-	err = fmt.Errorf("贴吧签到时发生错误, 错误代码: %s, 消息: %s", baiduUtil.ErrorColor(errorCode), baiduUtil.ErrorColor(errorMsg))
+
+	err = fmt.Errorf("贴吧签到时发生错误, 错误代码: %s, 消息: %s", pcsutil.ErrorColor(errorCode), pcsutil.ErrorColor(errorMsg))
 	switch errorCode {
 	case "0", "160002": // 	签到成功 / 已签到
 		return 0, bonusExp, nil

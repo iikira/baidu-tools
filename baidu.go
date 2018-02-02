@@ -9,3 +9,10 @@ type Baidu struct {
 	Age      float64 // 帐号年龄
 	Auth     *Auth
 }
+
+// Auth 百度验证
+type Auth struct {
+	BDUSS  string // 百度BDUSS
+	PTOKEN string
+	STOKEN string
+}
