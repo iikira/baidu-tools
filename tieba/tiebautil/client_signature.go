@@ -3,9 +3,8 @@ package tiebautil
 import (
 	"bytes"
 	"crypto/md5"
-	"fmt"
+	"encoding/hex"
 	"sort"
-	"strings"
 )
 
 // TiebaClientSignature 根据给定贴吧客户端的 post数据 进行签名, 以通过百度服务器验证。返回值为 sign 签名字符串值
@@ -28,15 +27,24 @@ func TiebaClientSignature(post map[string]string) {
 	}
 	sort.Sort(sort.StringSlice(keys))
 
-	var bb bytes.Buffer
+	bb := &bytes.Buffer{}
 	for _, key := range keys {
 		bb.WriteString(key + "=" + post[key])
 	}
 	bb.WriteString("tiebaclient!!!")
-	post["sign"] = fmt.Sprintf("%x", md5.Sum(bb.Bytes()))
+
+	m := md5.New()
+	bb.WriteTo(m)
+
+	post["sign"] = hex.EncodeToString(m.Sum(nil))
 }
 
 // TiebaClientRawQuerySignature 给 rawQuery 进行贴吧客户端签名, 返回值为签名后的 rawQuery
 func TiebaClientRawQuerySignature(rawQuery string) (signedRawQuery string) {
-	return rawQuery + "&sign=" + fmt.Sprintf("%x", md5.Sum([]byte(strings.Replace(rawQuery, "&", "", -1)+"tiebaclient!!!")))
+	m := md5.New()
+	m.Write(bytes.Replace([]byte(rawQuery), []byte("&"), nil, -1))
+	m.Write([]byte("tiebaclient!!!"))
+
+	signedRawQuery = rawQuery + "&sign=" + hex.EncodeToString(m.Sum(nil))
+	return
 }
