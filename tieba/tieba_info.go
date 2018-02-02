@@ -57,7 +57,7 @@ func NewUserInfoByUID(uid uint64) (t *Tieba, err error) {
 	return t, nil
 }
 
-// NewUserInfoByName 提供 name (百度用户名) 获取百度帐号详细信息
+// NewUserInfoByName 提供 name (百度用户名) 获取百度帐号个人详细信息
 func NewUserInfoByName(name string) (t *Tieba, err error) {
 	resp, err := requester.DefaultClient.Req("GET", "http://tieba.baidu.com/home/get/panel?un="+name, nil, nil)
 	if err != nil {
@@ -74,20 +74,28 @@ func NewUserInfoByName(name string) (t *Tieba, err error) {
 	return NewUserInfoByUID(json.GetPath("data", "id").MustUint64())
 }
 
-// FlushUserInfo 提供 name (百度用户名) 获取百度帐号详细信息
-func (t *Tieba) FlushUserInfo(uids ...uint64) error {
-	switch len(uids) {
-	case 0:
-	case 1:
-		t.Baidu.UID = uids[0]
-	default:
-		return fmt.Errorf("FlushUserInfo() recieve too many arguments")
+// FlushUserInfo 刷新百度帐号个人详细信息
+func (t *Tieba) FlushUserInfo() (err error) {
+	if t.Baidu == nil {
+		return fmt.Errorf("Baidu is not initialize")
 	}
 
-	this, err := NewUserInfoByUID(t.Baidu.UID)
-	if err != nil {
-		return err
+	this := new(Tieba)
+
+	if t.Baidu.UID != 0 {
+		this, err = NewUserInfoByUID(t.Baidu.UID)
+		if err != nil {
+			return err
+		}
+	} else if t.Baidu.Name != "" {
+		this, err = NewUserInfoByName(t.Baidu.Name)
+		if err != nil {
+			return err
+		}
+	} else {
+		return fmt.Errorf("Baidu uid and name are null")
 	}
+
 	this.Baidu.Auth = t.Baidu.Auth
 	t.Baidu = this.Baidu
 	t.Stat = this.Stat
