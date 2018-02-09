@@ -10,8 +10,8 @@ import (
 	"strconv"
 )
 
-// NewWithBDUSS 检测BDUSS有效性, 同时获取百度详细信息
-func NewWithBDUSS(bduss string) (*Tieba, error) {
+// NewUserInfoByBDUSS 检测BDUSS有效性, 同时获取百度详细信息
+func NewUserInfoByBDUSS(bduss string) (*Tieba, error) {
 	timestamp := pcsutil.BeijingTimeOption("")
 	post := map[string]string{
 		"bdusstoken":  bduss + "|null",
