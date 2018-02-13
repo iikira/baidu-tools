@@ -1,9 +1,8 @@
 package pan
 
 import (
-	"crypto/hmac"
-	"crypto/sha1"
 	"fmt"
+	"github.com/iikira/Baidu-Login/bdcrypto"
 	"regexp"
 	"strconv"
 	"time"
@@ -14,32 +13,26 @@ const (
 )
 
 var (
+	// YunDataExp 解析网盘分享首页的数据的正则表达式
 	YunDataExp = regexp.MustCompile(`window\.yunData[\s]?=[\s]?(.*?);`)
 )
 
-func HmacSha1(key, origData []byte) (cipherText []byte) {
-	mac := hmac.New(sha1.New, key)
-	mac.Write(origData)
-	return mac.Sum(nil)
-}
-
+// MustParseInt64 将字符串转换为 int64, 忽略错误
 func MustParseInt64(s string) (i int64) {
 	i, _ = strconv.ParseInt(s, 10, 64)
 	return
 }
 
+// MustParseInt 将字符串转换为 int, 忽略错误
 func MustParseInt(s string) (i int) {
 	i, _ = strconv.Atoi(s)
 	return
 }
 
-func (si *SharedInfo) auth() {
-	// url := fmt.Sprintf(
-	// 	"http://pan.baidu.com/share/list?shareid=%d&uk=%d&%s&sign=375dc1c3b4eeb35bb6e458f17e7f9c37e613ce76&timestamp=1618527500&bdstoken=76bf1ff30d7cc98550ce1a618ed2bc7e&devuid=&clienttype=1&channel=android_7.0_HUAWEI%%20NXT-AL10_bd-netdisk_1001540i&version=8.2.0",
-
-	// )
+// Signature 签名
+func (si *SharedInfo) Signature() {
 	si.Timestamp = time.Now().Unix()
 	orig := fmt.Sprintf("%d_%d__%d", si.ShareID, si.UK, si.Timestamp)
 
-	si.Sign = HmacSha1([]byte(bdKey), []byte(orig))
+	si.Sign = bdcrypto.HMacSha1([]byte(bdKey), []byte(orig))
 }

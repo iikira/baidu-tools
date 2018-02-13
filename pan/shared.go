@@ -48,7 +48,7 @@ func NewSharedInfo(sharedURL string) (si *SharedInfo, err error) {
 		return nil, fmt.Errorf("json 数据解析失败, %s", err)
 	}
 
-	si.auth()
+	si.Signature()
 
 	return si, nil
 }
