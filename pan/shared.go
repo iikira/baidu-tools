@@ -7,19 +7,17 @@ import (
 	"github.com/json-iterator/go"
 	"net/url"
 	"path"
-	"strconv"
 	"strings"
 )
 
 // SharedInfo 百度网盘文件分享页信息
 type SharedInfo struct {
-	UK            uint64 `json:"uk"`
-	ShareID       uint64 `json:"shareid"`
+	UK            uint64 `json:"uk"`            // 百度网盘用户id
+	ShareID       uint64 `json:"shareid"`       // 分享id
 	RootSharePath string `json:"rootSharePath"` // 分享的目录, 基于分享者的网盘根目录
-	DownloadSign  string `json:"downloadsign"`
-	TimeStamp     uint64 `json:"timestamp"`
 
-	BaseFileList []*FileDirectoryString `json:"file_list"`
+	Timestamp int64  // unix 时间戳
+	Sign      []byte // 签名
 
 	client *requester.HTTPClient
 }
@@ -50,19 +48,9 @@ func NewSharedInfo(sharedURL string) (si *SharedInfo, err error) {
 		return nil, fmt.Errorf("json 数据解析失败, %s", err)
 	}
 
-	return si, nil
-}
+	si.auth()
 
-// FileDirectoryString 文件和目录的信息, 字段类型全为 string
-type FileDirectoryString struct {
-	FsID     string `json:"fs_id"`           // fs_id
-	Path     string `json:"path"`            // 路径
-	Filename string `json:"server_filename"` // 文件名 或 目录名
-	Ctime    string `json:"server_ctime"`    // 创建日期
-	Mtime    string `json:"server_mtime"`    // 修改日期
-	MD5      string `json:"md5"`             // md5 值
-	Size     string `json:"size"`            // 文件大小 (目录为0)
-	Isdir    string `json:"isdir"`           // 是否为目录
+	return si, nil
 }
 
 // FileDirectory 文件和目录的信息
@@ -75,36 +63,103 @@ type FileDirectory struct {
 	MD5      string `json:"md5"`             // md5 值
 	Size     int64  `json:"size"`            // 文件大小 (目录为0)
 	Isdir    int    `json:"isdir"`           // 是否为目录
+	Dlink    string `json:"dlink"`           //下载直链
+}
+
+// FileDirectoryString 文件和目录的信息, 字段类型全为 string
+type FileDirectoryString struct {
+	FsID     string `json:"fs_id"`           // fs_id
+	Path     string `json:"path"`            // 路径
+	Filename string `json:"server_filename"` // 文件名 或 目录名
+	Ctime    string `json:"server_ctime"`    // 创建日期
+	Mtime    string `json:"server_mtime"`    // 修改日期
+	MD5      string `json:"md5"`             // md5 值
+	Size     string `json:"size"`            // 文件大小 (目录为0)
+	Isdir    string `json:"isdir"`           // 是否为目录
+	Dlink    string `json:"dlink"`           // 下载链接
+}
+
+func (fdss *FileDirectoryString) convert() *FileDirectory {
+	return &FileDirectory{
+		FsID:     MustParseInt64(fdss.FsID),
+		Path:     fdss.Path,
+		Filename: fdss.Filename,
+		Ctime:    MustParseInt64(fdss.Ctime),
+		Mtime:    MustParseInt64(fdss.Mtime),
+		MD5:      fdss.MD5,
+		Size:     MustParseInt64(fdss.Size),
+		Isdir:    MustParseInt(fdss.Isdir),
+		Dlink:    fdss.Dlink,
+	}
 }
 
 // List 获取文件列表
 func (si *SharedInfo) List(subDir string) (fds []*FileDirectory, err error) {
-	dir := path.Clean(si.RootSharePath + "/" + subDir)
+	var (
+		isRoot     = 0
+		escapedDir string
+	)
 
-	escapedDir := url.PathEscape(dir)
+	cleanedSubDir := path.Clean(subDir)
+	if cleanedSubDir == "." || cleanedSubDir == "/" {
+		isRoot = 1
+	} else {
+		dir := path.Clean(si.RootSharePath + "/" + subDir)
+		escapedDir = url.PathEscape(dir)
+	}
 
-	listURL := "https://pan.baidu.com/share/list?app_id=250528&page=1&num=200&dir=" + escapedDir + "&uk=" + strconv.FormatUint(si.UK, 10) + "&shareid=" + strconv.FormatUint(si.ShareID, 10)
+	listURL := fmt.Sprintf(
+		"http://pan.baidu.com/share/list?shareid=%d&uk=%d&root=%d&dir=%s&sign=%x&timestamp=%d&devuid=&clienttype=1&channel=android_7.0_HUAWEI%%20NXT-AL10_bd-netdisk_1001540i&version=8.2.0",
+		si.ShareID, si.UK,
+		isRoot, escapedDir,
+		si.Sign, si.Timestamp,
+	)
+
+	fmt.Println(listURL)
 
 	body, err := si.client.Fetch("GET", listURL, nil, nil)
 	if err != nil {
 		return nil, fmt.Errorf("获取文件列表网络错误, %s", err)
 	}
 
-	jsonData := &struct {
-		ErrNo int
-		List  []*FileDirectory `json:"list"`
-	}{}
+	var errNo int
+	if isRoot != 0 { // 根目录
+		jsonData := &struct {
+			ErrNo int
+			List  []*FileDirectoryString `json:"list"`
+		}{}
 
-	err = jsoniter.Unmarshal(body, jsonData)
+		err = jsoniter.Unmarshal(body, jsonData)
+		if err == nil {
+			fds = make([]*FileDirectory, len(jsonData.List))
+			for k, info := range jsonData.List {
+				fds[k] = info.convert()
+			}
+		}
+
+		errNo = jsonData.ErrNo
+	} else {
+		jsonData := &struct {
+			ErrNo int
+			List  []*FileDirectory `json:"list"`
+		}{}
+
+		err = jsoniter.Unmarshal(body, jsonData)
+		if err == nil {
+			errNo = jsonData.ErrNo
+			fds = jsonData.List
+		}
+	}
+
 	if err != nil {
 		return nil, fmt.Errorf("获取文件列表, json 数据解析失败, %s", err)
 	}
 
-	msgFmt := "获取文件列表, 远端服务器返回错误代码 " + fmt.Sprint(jsonData.ErrNo) + ", 消息: %s"
-	switch jsonData.ErrNo {
+	msgFmt := "获取文件列表, 远端服务器返回错误代码 " + fmt.Sprint(errNo) + ", 消息: %s"
+	switch errNo {
 	case 0:
 	case -9:
-		return nil, fmt.Errorf(msgFmt, "可能路径不存在")
+		return nil, fmt.Errorf(msgFmt, "可能路径不存在或提取码错误")
 	case -19:
 		return nil, fmt.Errorf(msgFmt, "需要输入验证码")
 	default:
@@ -112,78 +167,31 @@ func (si *SharedInfo) List(subDir string) (fds []*FileDirectory, err error) {
 		return nil, fmt.Errorf(msgFmt, "未知错误")
 	}
 
-	return jsonData.List, err
+	return fds, nil
 }
 
-// GetFSID 获取文件的 fs_id
-func (si *SharedInfo) GetFSID(filePath string) (fsid int64, err error) {
-	if filePath == "" {
-		return 0, fmt.Errorf("文件路径为空")
-	}
-
+// GetDownloadLink 获取下载直链
+func (si *SharedInfo) GetDownloadLink(filePath string) (dlink string, err error) {
 	cleanedPath := path.Clean(filePath)
-	if cleanedPath == "/" {
-		return 0, fmt.Errorf("不支持获取根目录fsid")
+	if cleanedPath == "/" || cleanedPath == "." {
+		return "", fmt.Errorf("不支持获取根目录下载直链")
 	}
 
 	dir, fileName := path.Split(cleanedPath)
 
-	if dir == "/" || dir == "" {
-		for _, fileInfo := range si.BaseFileList {
-			// 考虑使用通配符
-			if strings.Compare(fileInfo.Filename, fileName) == 0 {
-				return strconv.ParseInt(fileInfo.FsID, 10, 64)
-			}
-		}
-
-		return 0, fmt.Errorf("未匹配到文件路径 %s", filePath)
-	}
-
 	dirInfo, err := si.List(dir)
 	if err != nil {
-		return 0, fmt.Errorf("获取文件的 fs_id 出错, %s", err)
+		return "", fmt.Errorf("获取目录信息出错, 路径: %s, %s", path.Clean(dir), err)
 	}
 
 	for k := range dirInfo {
 		if strings.Compare(dirInfo[k].Filename, fileName) == 0 {
-			return dirInfo[k].FsID, nil
+			if dirInfo[k].Isdir != 0 {
+				return "", fmt.Errorf("不支持获取目录的下载直链, 路径: %s", cleanedPath)
+			}
+			return dirInfo[k].Dlink, nil
 		}
 	}
 
-	return 0, fmt.Errorf("未匹配到文件路径 %s", filePath)
-}
-
-// GetDownloadLink 获取下载直链,
-// 此接口较大概率会出现验证码
-func (si *SharedInfo) GetDownloadLink(fsid int64) (dlink string, err error) {
-	fidList := url.PathEscape(fmt.Sprintf("[%d]", fsid))
-	getDlinkURL := fmt.Sprintf("http://pan.baidu.com/share/download?app_id=250528&uk=%d&shareid=%d&fid_list=%s&sign=%s&timestamp=%d", si.UK, si.ShareID, fidList, si.DownloadSign, si.TimeStamp)
-
-	body, err := si.client.Fetch("GET", getDlinkURL, nil, nil)
-	if err != nil {
-		return "", fmt.Errorf("获取下载直链网络错误, %s", err)
-	}
-
-	jsonData := &struct {
-		ErrNo int    `json:"errno"`
-		Dlink string `json:"dlink"`
-		Img   string `json:"img"`
-		Vcode string `json:"vcode"`
-	}{}
-
-	err = jsoniter.Unmarshal(body, jsonData)
-	if err != nil {
-		return "", fmt.Errorf("获取下载直链 json 解析错误, %s", err)
-	}
-
-	msgFmt := "获取下载直链, 远端服务器返回错误代码 " + fmt.Sprint(jsonData.ErrNo) + ", 消息: %s"
-	switch jsonData.ErrNo {
-	case 0:
-	case -19:
-		return "", fmt.Errorf(msgFmt, "需要输入验证码")
-	default:
-		return "", fmt.Errorf(msgFmt, "未知错误")
-	}
-
-	return jsonData.Dlink, nil
+	return "", fmt.Errorf("未匹配到文件路径 %s", cleanedPath)
 }

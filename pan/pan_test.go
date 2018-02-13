@@ -14,15 +14,7 @@ func TestPan(t *testing.T) {
 		return
 	}
 
-	fsid, err := si.GetFSID("567/23.txt")
-	if err != nil {
-		t.Log(err)
-		return
-	}
-
-	t.Log(fsid)
-
-	dlink, err := si.GetDownloadLink(fsid)
+	dlink, err := si.GetDownloadLink("/567/23.txt")
 	if err != nil {
 		t.Log(err)
 		return
