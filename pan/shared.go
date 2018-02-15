@@ -66,8 +66,8 @@ type FileDirectory struct {
 	Dlink    string `json:"dlink"`           //下载直链
 }
 
-// FileDirectoryString 文件和目录的信息, 字段类型全为 string
-type FileDirectoryString struct {
+// fileDirectoryString 文件和目录的信息, 字段类型全为 string
+type fileDirectoryString struct {
 	FsID     string `json:"fs_id"`           // fs_id
 	Path     string `json:"path"`            // 路径
 	Filename string `json:"server_filename"` // 文件名 或 目录名
@@ -79,7 +79,7 @@ type FileDirectoryString struct {
 	Dlink    string `json:"dlink"`           // 下载链接
 }
 
-func (fdss *FileDirectoryString) convert() *FileDirectory {
+func (fdss *fileDirectoryString) convert() *FileDirectory {
 	return &FileDirectory{
 		FsID:     MustParseInt64(fdss.FsID),
 		Path:     fdss.Path,
@@ -93,7 +93,7 @@ func (fdss *FileDirectoryString) convert() *FileDirectory {
 	}
 }
 
-// List 获取文件列表
+// List 获取文件列表, subDir 为相对于分享目录的目录
 func (si *SharedInfo) List(subDir string) (fds []*FileDirectory, err error) {
 	var (
 		isRoot     = 0
@@ -126,7 +126,7 @@ func (si *SharedInfo) List(subDir string) (fds []*FileDirectory, err error) {
 	if isRoot != 0 { // 根目录
 		jsonData := &struct {
 			ErrNo int
-			List  []*FileDirectoryString `json:"list"`
+			List  []*fileDirectoryString `json:"list"`
 		}{}
 
 		err = jsoniter.Unmarshal(body, jsonData)
@@ -170,7 +170,7 @@ func (si *SharedInfo) List(subDir string) (fds []*FileDirectory, err error) {
 	return fds, nil
 }
 
-// GetDownloadLink 获取下载直链
+// GetDownloadLink 获取下载直链, filePath 为相对于分享目录的目录
 func (si *SharedInfo) GetDownloadLink(filePath string) (dlink string, err error) {
 	cleanedPath := path.Clean(filePath)
 	if cleanedPath == "/" || cleanedPath == "." {
