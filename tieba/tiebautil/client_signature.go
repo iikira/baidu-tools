@@ -7,7 +7,7 @@ import (
 	"sort"
 )
 
-// TiebaClientSignature 根据给定贴吧客户端的 post数据 进行签名, 以通过百度服务器验证。返回值为 sign 签名字符串值
+// TiebaClientSignature 根据给定贴吧客户端的post数据进行签名, 以通过百度服务器验证. 返回值为签名后的 post
 func TiebaClientSignature(post map[string]string) {
 	if post == nil {
 		return
@@ -27,14 +27,11 @@ func TiebaClientSignature(post map[string]string) {
 	}
 	sort.Sort(sort.StringSlice(keys))
 
-	bb := &bytes.Buffer{}
-	for _, key := range keys {
-		bb.WriteString(key + "=" + post[key])
-	}
-	bb.WriteString("tiebaclient!!!")
-
 	m := md5.New()
-	bb.WriteTo(m)
+	for _, key := range keys {
+		m.Write([]byte(key + "=" + post[key]))
+	}
+	m.Write([]byte("tiebaclient!!!"))
 
 	post["sign"] = hex.EncodeToString(m.Sum(nil))
 }
