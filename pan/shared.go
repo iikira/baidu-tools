@@ -1,10 +1,11 @@
-// 百度网盘提取分享文件的下载链接
+// Package pan 百度网盘提取分享文件的下载链接
 package pan
 
 import (
 	"fmt"
 	"github.com/iikira/BaiduPCS-Go/requester"
 	"github.com/json-iterator/go"
+	"net/http"
 	"net/url"
 	"path"
 	"strings"
@@ -23,14 +24,66 @@ type SharedInfo struct {
 }
 
 // NewSharedInfo 解析百度网盘文件分享页信息,
-// 暂不支持带提取码的的分享
-func NewSharedInfo(sharedURL string) (si *SharedInfo, err error) {
+// sharedURL 分享链接, pwd 提取密码, 没有则留空.
+func NewSharedInfo(sharedURL, pwd string) (si *SharedInfo, err error) {
 	h := requester.NewHTTPClient()
-	h.SetKeepAlive(false)
+
+	// 不自动跳转
+	h.Client.CheckRedirect = func(req *http.Request, via []*http.Request) error {
+		return http.ErrUseLastResponse
+	}
+
+	// 须是手机浏览器的标识, 否则可能抓不到数据
 	h.UserAgent = "Mozilla/5.0 (Linux; Android 7.0; HUAWEI NXT-AL10 Build/HUAWEINXT-AL10) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/64.0.3282.137 Mobile Safari/537.36"
 
 	si = &SharedInfo{
 		client: h,
+	}
+
+	resp, err := si.client.Req("GET", sharedURL, nil, nil)
+	if resp.Body != nil {
+		defer resp.Body.Close()
+	}
+	if err != nil {
+		return nil, err
+	}
+
+	switch resp.StatusCode / 100 {
+	case 3: // 需要输入提取密码
+		locURL, err := resp.Location()
+		if err != nil {
+			return nil, fmt.Errorf("检测提取码, 提取 Location 错误, %s", err)
+		}
+
+		// 验证提取密码
+		body, err := si.client.Fetch("POST", "https://pan.baidu.com/share/verify?"+locURL.RawQuery, map[string]string{
+			"pwd":       pwd,
+			"vcode":     "",
+			"vcode_str": "",
+		}, map[string]string{
+			"Content-Type": "application/x-www-form-urlencoded",
+			"Referer":      "https://pan.baidu.com/",
+		})
+
+		if err != nil {
+			return nil, fmt.Errorf("验证提取密码网络错误, %s", err)
+		}
+
+		jsonData := &ErrInfo{}
+
+		err = jsoniter.Unmarshal(body, jsonData)
+		if err != nil {
+			return nil, fmt.Errorf("验证提取密码, json数据解析失败, %s", err)
+		}
+
+		switch jsonData.ErrNo {
+		case 0: // 密码正确
+			break
+		default:
+			return nil, fmt.Errorf("验证提取密码遇到错误, %s", jsonData)
+		}
+	case 4, 5:
+		return nil, fmt.Errorf(resp.Status)
 	}
 
 	body, err := si.client.Fetch("GET", sharedURL, nil, nil)
@@ -45,7 +98,11 @@ func NewSharedInfo(sharedURL string) (si *SharedInfo, err error) {
 
 	err = jsoniter.Unmarshal(rawYunData[1], si)
 	if err != nil {
-		return nil, fmt.Errorf("json 数据解析失败, %s", err)
+		return nil, fmt.Errorf("分享页, json数据解析失败, %s", err)
+	}
+
+	if si.UK == 0 || si.ShareID == 0 {
+		return nil, fmt.Errorf("分享页, json数据解析失败, 未找到 shareid 或 uk 值")
 	}
 
 	si.Signature()
@@ -115,8 +172,6 @@ func (si *SharedInfo) List(subDir string) (fds []*FileDirectory, err error) {
 		si.Sign, si.Timestamp,
 	)
 
-	fmt.Println(listURL)
-
 	body, err := si.client.Fetch("GET", listURL, nil, nil)
 	if err != nil {
 		return nil, fmt.Errorf("获取文件列表网络错误, %s", err)
@@ -125,7 +180,7 @@ func (si *SharedInfo) List(subDir string) (fds []*FileDirectory, err error) {
 	var errNo int
 	if isRoot != 0 { // 根目录
 		jsonData := &struct {
-			ErrNo int
+			ErrNo int                    `json:"errno"`
 			List  []*fileDirectoryString `json:"list"`
 		}{}
 
@@ -140,7 +195,7 @@ func (si *SharedInfo) List(subDir string) (fds []*FileDirectory, err error) {
 		errNo = jsonData.ErrNo
 	} else {
 		jsonData := &struct {
-			ErrNo int
+			ErrNo int              `json:"errno"`
 			List  []*FileDirectory `json:"list"`
 		}{}
 

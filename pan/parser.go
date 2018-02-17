@@ -9,7 +9,8 @@ import (
 )
 
 const (
-	bdKey = "B8ec24caf34ef7227c66767d29ffd3fb"
+	// BDKey 百度 HMAC-SHA1 密钥
+	BDKey = "B8ec24caf34ef7227c66767d29ffd3fb"
 )
 
 var (
@@ -34,5 +35,5 @@ func (si *SharedInfo) Signature() {
 	si.Timestamp = time.Now().Unix()
 	orig := fmt.Sprintf("%d_%d__%d", si.ShareID, si.UK, si.Timestamp)
 
-	si.Sign = bdcrypto.HMacSha1([]byte(bdKey), []byte(orig))
+	si.Sign = bdcrypto.HMacSha1([]byte(BDKey), []byte(orig))
 }
