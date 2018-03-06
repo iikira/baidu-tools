@@ -20,7 +20,7 @@ type SharedInfo struct {
 	Timestamp int64  // unix 时间戳
 	Sign      []byte // 签名
 
-	client *requester.HTTPClient
+	Client *requester.HTTPClient
 }
 
 // NewSharedInfo 解析百度网盘文件分享页信息,
@@ -37,10 +37,10 @@ func NewSharedInfo(sharedURL, pwd string) (si *SharedInfo, err error) {
 	h.UserAgent = "Mozilla/5.0 (Linux; Android 7.0; HUAWEI NXT-AL10 Build/HUAWEINXT-AL10) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/64.0.3282.137 Mobile Safari/537.36"
 
 	si = &SharedInfo{
-		client: h,
+		Client: h,
 	}
 
-	resp, err := si.client.Req("GET", sharedURL, nil, nil)
+	resp, err := si.Client.Req("GET", sharedURL, nil, nil)
 	if resp.Body != nil {
 		defer resp.Body.Close()
 	}
@@ -56,7 +56,7 @@ func NewSharedInfo(sharedURL, pwd string) (si *SharedInfo, err error) {
 		}
 
 		// 验证提取密码
-		body, err := si.client.Fetch("POST", "https://pan.baidu.com/share/verify?"+locURL.RawQuery, map[string]string{
+		body, err := si.Client.Fetch("POST", "https://pan.baidu.com/share/verify?"+locURL.RawQuery, map[string]string{
 			"pwd":       pwd,
 			"vcode":     "",
 			"vcode_str": "",
@@ -86,7 +86,7 @@ func NewSharedInfo(sharedURL, pwd string) (si *SharedInfo, err error) {
 		return nil, fmt.Errorf(resp.Status)
 	}
 
-	body, err := si.client.Fetch("GET", sharedURL, nil, nil)
+	body, err := si.Client.Fetch("GET", sharedURL, nil, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -157,6 +157,10 @@ func (si *SharedInfo) List(subDir string) (fds []*FileDirectory, err error) {
 		escapedDir string
 	)
 
+	if si.Client == nil {
+		si.Client = requester.NewHTTPClient()
+	}
+
 	cleanedSubDir := path.Clean(subDir)
 	if cleanedSubDir == "." || cleanedSubDir == "/" {
 		isRoot = 1
@@ -172,7 +176,7 @@ func (si *SharedInfo) List(subDir string) (fds []*FileDirectory, err error) {
 		si.Sign, si.Timestamp,
 	)
 
-	body, err := si.client.Fetch("GET", listURL, nil, nil)
+	body, err := si.Client.Fetch("GET", listURL, nil, nil)
 	if err != nil {
 		return nil, fmt.Errorf("获取文件列表网络错误, %s", err)
 	}

@@ -35,5 +35,5 @@ func (si *SharedInfo) Signature() {
 	si.Timestamp = time.Now().Unix()
 	orig := fmt.Sprintf("%d_%d__%d", si.ShareID, si.UK, si.Timestamp)
 
-	si.Sign = bdcrypto.HMacSha1([]byte(BDKey), []byte(orig))
+	si.Sign = bdcrypto.HmacSHA1([]byte(BDKey), []byte(orig))
 }
