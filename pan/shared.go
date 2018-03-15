@@ -13,8 +13,8 @@ import (
 
 // SharedInfo 百度网盘文件分享页信息
 type SharedInfo struct {
-	UK            uint64 `json:"uk"`            // 百度网盘用户id
-	ShareID       uint64 `json:"shareid"`       // 分享id
+	UK            int64  `json:"uk"`            // 百度网盘用户id
+	ShareID       int64  `json:"shareid"`       // 分享id
 	RootSharePath string `json:"rootSharePath"` // 分享的目录, 基于分享者的网盘根目录
 
 	Timestamp int64  // unix 时间戳

@@ -24,7 +24,7 @@ func (ei *ErrInfo) Error() string {
 	return fmt.Sprintf("错误代码: %d, 消息: %s", ei.ErrNo, ei.ErrMsg)
 }
 
-// ParseErrMsg 解析网盘错误信息
+// ParseErrMsg 根据 ErrNo, 解析网盘错误信息
 func (ei *ErrInfo) ParseErrMsg() {
 	if ei.ErrMsg != "" || ei.ErrNo == 0 {
 		return
