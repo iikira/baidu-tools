@@ -10,6 +10,7 @@ func TestSignature(t *testing.T) {
 		"111": "222",
 	}
 	TiebaClientSignature(post)
+	fmt.Println(TiebaClientRawQuerySignature("111=222&333=22"))
 
 	fmt.Println(post)
 }
