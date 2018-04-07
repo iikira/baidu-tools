@@ -9,7 +9,7 @@ func TestRandomNumber(t *testing.T) {
 	for i := 0; i < 10; i++ {
 		fmt.Println(RamdomNumber(49000, 10000))
 		fmt.Println(RamdomBytes(4))
-		fmt.Println(RamdomMD5UpperString(4))
+		fmt.Println(RamdomMD5UpperString())
 	}
 	fmt.Println(SumIMEI("sdfadsfasd"))
 	fmt.Println(GetPhoneModel("ddsasdddsasd'adlffasatrim"))

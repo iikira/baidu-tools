@@ -6,7 +6,9 @@ import (
 	cryptorand "crypto/rand"
 	"encoding/binary"
 	"encoding/hex"
+	"strconv"
 	"strings"
+	"time"
 )
 
 // RamdomNumber 返回[min, max]随机数字
@@ -26,13 +28,14 @@ func RamdomBytes(n int) []byte {
 }
 
 // RamdomMD5String 随机md5字符串
-func RamdomMD5String(n int) string {
+func RamdomMD5String() string {
 	m := md5.New()
-	m.Write(RamdomBytes(n))
+	m.Write(RamdomBytes(4))
+	m.Write([]byte(strconv.FormatInt(time.Now().UnixNano(), 16)))
 	return hex.EncodeToString(m.Sum(nil))
 }
 
 // RamdomMD5UpperString 随机md5字符串, 大写
-func RamdomMD5UpperString(n int) string {
-	return strings.ToUpper(RamdomMD5String(n))
+func RamdomMD5UpperString() string {
+	return strings.ToUpper(RamdomMD5String())
 }

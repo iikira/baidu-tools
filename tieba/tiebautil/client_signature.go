@@ -32,7 +32,7 @@ func TiebaClientSignature(post map[string]string) {
 	post["_phone_imei"] = phoneIMEIStr
 	post["from"] = "mini_ad_wandoujia"
 	post["model"] = ramdominfo.GetPhoneModel(bduss)
-	post["cuid"] = ramdominfo.RamdomMD5UpperString(4) + "|" + bdcrypto.StringReverse(phoneIMEIStr)
+	post["cuid"] = ramdominfo.RamdomMD5UpperString() + "|" + bdcrypto.StringReverse(phoneIMEIStr)
 
 	keys := make([]string, 0, len(post))
 	for key := range post {
