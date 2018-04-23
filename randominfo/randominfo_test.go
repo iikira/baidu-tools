@@ -1,4 +1,4 @@
-package ramdominfo
+package randominfo
 
 import (
 	"fmt"
