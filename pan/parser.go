@@ -30,8 +30,8 @@ func MustParseInt(s string) (i int) {
 	return
 }
 
-// Signature 签名
-func (si *SharedInfo) Signature() {
+// signature 签名
+func (si *SharedInfo) signature() {
 	si.Timestamp = time.Now().Unix()
 	orig := fmt.Sprintf("%d_%d__%d", si.ShareID, si.UK, si.Timestamp)
 

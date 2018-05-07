@@ -9,7 +9,8 @@ func TestPan(t *testing.T) {
 	//https://pan.baidu.com/s/1o9oDpdo
 	//https://pan.baidu.com/s/1c08q9Tu
 	//链接:https://pan.baidu.com/s/1djChHW 密码:ywsp
-	si, err := NewSharedInfo("https://pan.baidu.com/s/1djChHW", "ywsp")
+	si := NewSharedInfo("https://pan.baidu.com/s/1djChHW")
+	err := si.Auth("ywsp")
 	if err != nil {
 		t.Log(err)
 		return

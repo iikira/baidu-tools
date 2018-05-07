@@ -61,6 +61,8 @@ func (ei *ErrInfo) ParseErrMsg() {
 		ei.ErrMsg = "对不起，该文件已经限制分享！"
 	case -17:
 		ei.ErrMsg = "文件分享超过限制"
+	case -19:
+		ei.ErrMsg = "需要输入验证码"
 	case -30:
 		ei.ErrMsg = "文件已存在"
 	case -31:
@@ -83,10 +85,13 @@ func (ei *ErrInfo) ParseErrMsg() {
 		ei.ErrMsg = "分享次数超出限制，可以到“我的分享”中查看已分享的文件链接"
 	case 112:
 		ei.ErrMsg = "页面已过期，请刷新后重试"
+	case 113:
+		ei.ErrMsg = "签名错误"
 	case 114:
 		ei.ErrMsg = "当前任务不存在，保存失败"
 	case 115:
 		ei.ErrMsg = "该文件禁止分享"
-
+	default:
+		ei.ErrMsg = "未知错误"
 	}
 }

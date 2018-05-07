@@ -2,6 +2,7 @@
 package pan
 
 import (
+	"bytes"
 	"fmt"
 	"github.com/iikira/BaiduPCS-Go/requester"
 	"github.com/json-iterator/go"
@@ -20,44 +21,55 @@ type SharedInfo struct {
 	Timestamp int64  // unix 时间戳
 	Sign      []byte // 签名
 
-	Client *requester.HTTPClient
+	Client    *requester.HTTPClient
+	sharedURL string
 }
 
 // NewSharedInfo 解析百度网盘文件分享页信息,
-// sharedURL 分享链接, pwd 提取密码, 没有则留空.
-func NewSharedInfo(sharedURL, pwd string) (si *SharedInfo, err error) {
-	h := requester.NewHTTPClient()
+// sharedURL 分享链接
+func NewSharedInfo(sharedURL string) (si *SharedInfo) {
+	return &SharedInfo{
+		sharedURL: sharedURL,
+	}
+}
+
+func (si *SharedInfo) lazyInit() {
+	if si.Client == nil {
+		si.Client = requester.NewHTTPClient()
+	}
+}
+
+// Auth 验证提取码
+// passwd 提取码, 没有则留空
+func (si *SharedInfo) Auth(passwd string) error {
+	si.lazyInit()
 
 	// 不自动跳转
-	h.Client.CheckRedirect = func(req *http.Request, via []*http.Request) error {
+	si.Client.CheckRedirect = func(req *http.Request, via []*http.Request) error {
 		return http.ErrUseLastResponse
 	}
 
 	// 须是手机浏览器的标识, 否则可能抓不到数据
-	h.UserAgent = "Mozilla/5.0 (Linux; Android 7.0; HUAWEI NXT-AL10 Build/HUAWEINXT-AL10) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/64.0.3282.137 Mobile Safari/537.36"
+	si.Client.SetUserAgent("Mozilla/5.0 (Linux; Android 7.0; HUAWEI NXT-AL10 Build/HUAWEINXT-AL10) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/64.0.3282.137 Mobile Safari/537.36")
 
-	si = &SharedInfo{
-		Client: h,
-	}
-
-	resp, err := si.Client.Req("GET", sharedURL, nil, nil)
-	if resp.Body != nil {
+	resp, err := si.Client.Req("GET", si.sharedURL, nil, nil)
+	if resp != nil {
 		defer resp.Body.Close()
 	}
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	switch resp.StatusCode / 100 {
 	case 3: // 需要输入提取密码
 		locURL, err := resp.Location()
 		if err != nil {
-			return nil, fmt.Errorf("检测提取码, 提取 Location 错误, %s", err)
+			return fmt.Errorf("检测提取码, 提取 Location 错误, %s", err)
 		}
 
 		// 验证提取密码
 		body, err := si.Client.Fetch("POST", "https://pan.baidu.com/share/verify?"+locURL.RawQuery, map[string]string{
-			"pwd":       pwd,
+			"pwd":       passwd,
 			"vcode":     "",
 			"vcode_str": "",
 		}, map[string]string{
@@ -66,48 +78,56 @@ func NewSharedInfo(sharedURL, pwd string) (si *SharedInfo, err error) {
 		})
 
 		if err != nil {
-			return nil, fmt.Errorf("验证提取密码网络错误, %s", err)
+			return fmt.Errorf("验证提取密码网络错误, %s", err)
 		}
 
 		jsonData := &ErrInfo{}
 
 		err = jsoniter.Unmarshal(body, jsonData)
 		if err != nil {
-			return nil, fmt.Errorf("验证提取密码, json数据解析失败, %s", err)
+			return fmt.Errorf("验证提取密码, json数据解析失败, %s", err)
 		}
 
 		switch jsonData.ErrNo {
 		case 0: // 密码正确
 			break
 		default:
-			return nil, fmt.Errorf("验证提取密码遇到错误, %s", jsonData)
+			return fmt.Errorf("验证提取密码遇到错误, %s", jsonData)
 		}
 	case 4, 5:
-		return nil, fmt.Errorf(resp.Status)
+		return fmt.Errorf(resp.Status)
 	}
 
-	body, err := si.Client.Fetch("GET", sharedURL, nil, nil)
+	return si.getInfo()
+}
+
+// getInfo 获取 UK, ShareID, 如果有提取码, 先需进行验证
+func (si *SharedInfo) getInfo() error {
+	si.lazyInit()
+
+	body, err := si.Client.Fetch("GET", si.sharedURL, nil, nil)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	rawYunData := YunDataExp.FindSubmatch(body)
 	if len(rawYunData) < 2 {
-		return nil, fmt.Errorf("分享页数据解析失败")
+		// 检测是否需要提取密码
+		if bytes.Contains(body, []byte("请输入提取密码")) {
+			return fmt.Errorf("需要输入提取密码")
+		}
+		return fmt.Errorf("分享页数据解析失败")
 	}
 
 	err = jsoniter.Unmarshal(rawYunData[1], si)
 	if err != nil {
-		return nil, fmt.Errorf("分享页, json数据解析失败, %s", err)
+		return fmt.Errorf("分享页, json数据解析失败, %s", err)
 	}
 
 	if si.UK == 0 || si.ShareID == 0 {
-		return nil, fmt.Errorf("分享页, json数据解析失败, 未找到 shareid 或 uk 值")
+		return fmt.Errorf("分享页, json数据解析失败, 未找到 shareid 或 uk 值")
 	}
-
-	si.Signature()
-
-	return si, nil
+	return nil
 }
 
 // FileDirectory 文件和目录的信息
@@ -152,14 +172,12 @@ func (fdss *fileDirectoryString) convert() *FileDirectory {
 
 // List 获取文件列表, subDir 为相对于分享目录的目录
 func (si *SharedInfo) List(subDir string) (fds []*FileDirectory, err error) {
+	si.lazyInit()
+	si.signature()
 	var (
 		isRoot     = 0
 		escapedDir string
 	)
-
-	if si.Client == nil {
-		si.Client = requester.NewHTTPClient()
-	}
 
 	cleanedSubDir := path.Clean(subDir)
 	if cleanedSubDir == "." || cleanedSubDir == "/" {
@@ -170,7 +188,7 @@ func (si *SharedInfo) List(subDir string) (fds []*FileDirectory, err error) {
 	}
 
 	listURL := fmt.Sprintf(
-		"http://pan.baidu.com/share/list?shareid=%d&uk=%d&root=%d&dir=%s&sign=%x&timestamp=%d&devuid=&clienttype=1&channel=android_7.0_HUAWEI%%20NXT-AL10_bd-netdisk_1001540i&version=8.2.0",
+		"https://pan.baidu.com/share/list?shareid=%d&uk=%d&root=%d&dir=%s&sign=%x&timestamp=%d&devuid=&clienttype=1&channel=android_7.0_HUAWEI%%20NXT-AL10_bd-netdisk_1001540i&version=8.2.0",
 		si.ShareID, si.UK,
 		isRoot, escapedDir,
 		si.Sign, si.Timestamp,
@@ -181,31 +199,32 @@ func (si *SharedInfo) List(subDir string) (fds []*FileDirectory, err error) {
 		return nil, fmt.Errorf("获取文件列表网络错误, %s", err)
 	}
 
-	var errNo int
+	var errInfo = &ErrInfo{}
 	if isRoot != 0 { // 根目录
-		jsonData := &struct {
-			ErrNo int                    `json:"errno"`
-			List  []*fileDirectoryString `json:"list"`
-		}{}
+		jsonData := struct {
+			*ErrInfo
+			List []*fileDirectoryString `json:"list"`
+		}{
+			ErrInfo: errInfo,
+		}
 
-		err = jsoniter.Unmarshal(body, jsonData)
+		err = jsoniter.Unmarshal(body, &jsonData)
 		if err == nil {
 			fds = make([]*FileDirectory, len(jsonData.List))
 			for k, info := range jsonData.List {
 				fds[k] = info.convert()
 			}
 		}
-
-		errNo = jsonData.ErrNo
 	} else {
-		jsonData := &struct {
-			ErrNo int              `json:"errno"`
-			List  []*FileDirectory `json:"list"`
-		}{}
+		jsonData := struct {
+			*ErrInfo
+			List []*FileDirectory `json:"list"`
+		}{
+			ErrInfo: errInfo,
+		}
 
-		err = jsoniter.Unmarshal(body, jsonData)
+		err = jsoniter.Unmarshal(body, &jsonData)
 		if err == nil {
-			errNo = jsonData.ErrNo
 			fds = jsonData.List
 		}
 	}
@@ -214,16 +233,8 @@ func (si *SharedInfo) List(subDir string) (fds []*FileDirectory, err error) {
 		return nil, fmt.Errorf("获取文件列表, json 数据解析失败, %s", err)
 	}
 
-	msgFmt := "获取文件列表, 远端服务器返回错误代码 " + fmt.Sprint(errNo) + ", 消息: %s"
-	switch errNo {
-	case 0:
-	case -9:
-		return nil, fmt.Errorf(msgFmt, "可能路径不存在或提取码错误")
-	case -19:
-		return nil, fmt.Errorf(msgFmt, "需要输入验证码")
-	default:
-		fmt.Printf("%s\n", body)
-		return nil, fmt.Errorf(msgFmt, "未知错误")
+	if errInfo.ErrNo != 0 {
+		return nil, errInfo
 	}
 
 	return fds, nil
