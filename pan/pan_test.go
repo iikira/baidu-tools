@@ -16,11 +16,17 @@ func TestPan(t *testing.T) {
 		return
 	}
 
-	dlink, err := si.GetDownloadLink("/567/23.txt")
+	err = si.InitInfo()
 	if err != nil {
 		t.Log(err)
 		return
 	}
 
-	fmt.Println(dlink)
+	fileInfo, err := si.Meta("/567/23.txt")
+	if err != nil {
+		t.Log(err)
+		return
+	}
+
+	fmt.Println(fileInfo.Dlink)
 }
