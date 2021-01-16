@@ -3,9 +3,9 @@ package tieba
 import (
 	"fmt"
 	"github.com/bitly/go-simplejson"
-	"github.com/iikira/BaiduPCS-Go/pcsutil"
-	"github.com/iikira/BaiduPCS-Go/requester"
 	"github.com/iikira/baidu-tools/tieba/tiebautil"
+	"github.com/iikira/iikira-go-utils/requester"
+	"github.com/iikira/iikira-go-utils/utils"
 	"strconv"
 	"time"
 	"unsafe"
@@ -72,7 +72,7 @@ func (user *Tieba) DoTiebaSign(fid, name string) (status int, bonusExp int, err 
 		return 1, bonusExp, err
 	}
 
-	err = fmt.Errorf("贴吧签到时发生错误, 错误代码: %s, 消息: %s", pcsutil.ErrorColor(errorCode), pcsutil.ErrorColor(errorMsg))
+	err = fmt.Errorf("贴吧签到时发生错误, 错误代码: %s, 消息: %s", utils.ErrorColor(errorCode), utils.ErrorColor(errorMsg))
 	switch errorCode {
 	case "0", "160002": // 	签到成功 / 已签到
 		return 0, bonusExp, nil

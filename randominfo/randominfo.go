@@ -4,6 +4,8 @@ package randominfo
 import (
 	"crypto/md5"
 	cryptorand "crypto/rand"
+	"crypto/sha1"
+	"encoding/base64"
 	"encoding/binary"
 	"encoding/hex"
 	"strconv"
@@ -38,6 +40,13 @@ func RandomMD5String() string {
 // RandomMD5UpperString 随机md5字符串, 大写
 func RandomMD5UpperString() string {
 	return strings.ToUpper(RamdomMD5String())
+}
+
+// RandomSha1Base64String 随机sha1字符串, base64编码
+func RandomSha1Base64String() string {
+	m := sha1.New()
+	m.Write(RamdomBytes(4))
+	return base64.StdEncoding.EncodeToString(m.Sum(nil))
 }
 
 var (
